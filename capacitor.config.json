@@ -1,0 +1,6 @@
+{
+  "appId": "co.cashless.datafono",
+  "appName": "Datáfono Cashless",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false }
+}
