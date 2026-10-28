@@ -99,14 +99,14 @@ export default function Charge({ charge, onDone, onCancel }) {
         </section>
       ) : (
         <section className="qr-zone">
-          {qr ? <img className="qr" src={qr} alt="Código QR de pago" /> : <div className="spinner" />}
+          {qr ? <img className="qr" src={qr} alt="Código QR de pago" /> : !error && <div className="spinner" />}
           <p className="muted">El cliente escanea el código con su celular y paga con Mercado Pago o tarjeta.</p>
           {link && (
             <button className="btn secondary" onClick={() => navigator.share?.({ title: 'Pago', url: link }) ?? navigator.clipboard?.writeText(link)}>
               Compartir link de pago
             </button>
           )}
-          <div className="waiting"><span className="dot" /> Esperando el pago…</div>
+          {!error && <div className="waiting"><span className="dot" /> Esperando el pago…</div>}
         </section>
       )}
 

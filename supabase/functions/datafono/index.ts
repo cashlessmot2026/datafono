@@ -173,17 +173,23 @@ Deno.serve(async (req) => {
         if (error) throw error
 
         if (method === 'qr') {
-          const pref = await mp('/checkout/preferences', {
-            method: 'POST',
-            headers: { 'X-Idempotency-Key': tx.id },
-            body: JSON.stringify({
-              items: [{ id: tx.id, title: description, quantity: 1, unit_price: amount, currency_id: 'COP' }],
-              ...(email ? { payer: { email } } : {}),
-              external_reference: tx.id,
-              notification_url: `${FN_URL}?webhook=1`,
-              statement_descriptor: 'DATAFONO',
-            }),
-          })
+          let pref
+          try {
+            pref = await mp('/checkout/preferences', {
+              method: 'POST',
+              headers: { 'X-Idempotency-Key': tx.id },
+              body: JSON.stringify({
+                items: [{ id: tx.id, title: description, quantity: 1, unit_price: amount, currency_id: 'COP' }],
+                ...(email ? { payer: { email } } : {}),
+                external_reference: tx.id,
+                notification_url: `${FN_URL}?webhook=1`,
+                statement_descriptor: 'DATAFONO',
+              }),
+            })
+          } catch (e) {
+            await db.from('df_transactions').update({ status: 'cancelled', mp_status_detail: 'preference_error' }).eq('id', tx.id)
+            throw e
+          }
           await db.from('df_transactions').update({ mp_preference_id: pref.id }).eq('id', tx.id)
           return json({ tx: publicTx(tx), init_point: pref.init_point })
         }
