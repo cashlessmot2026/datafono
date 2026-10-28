@@ -29,7 +29,7 @@ export default function App() {
   const [settings, setSettings] = useState(null)
 
   const loadSettings = useCallback(async () => {
-    const { data } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle()
+    const { data } = await supabase.from('df_settings').select('*').eq('id', 1).maybeSingle()
     if (data) setSettings(data)
   }, [])
 

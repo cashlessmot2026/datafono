@@ -55,7 +55,7 @@ const money = (n: number, currency = 'COP') =>
 
 async function sendReceipt(tx: Record<string, any>) {
   if (!RESEND_KEY || !tx.customer_email || tx.email_sent || tx.status !== 'approved') return false
-  const { data: s } = await db.from('settings').select('*').eq('id', 1).single()
+  const { data: s } = await db.from('df_settings').select('*').eq('id', 1).single()
   const date = new Date(tx.updated_at ?? tx.created_at).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
   const rows = [
     ['Comercio', s?.business_name ?? ''],
@@ -94,7 +94,7 @@ async function sendReceipt(tx: Record<string, any>) {
     console.error('Resend error', await res.text())
     return false
   }
-  await db.from('transactions').update({ email_sent: true }).eq('id', tx.id)
+  await db.from('df_transactions').update({ email_sent: true }).eq('id', tx.id)
   return true
 }
 
@@ -104,7 +104,7 @@ async function applyPayment(tx: Record<string, any>, payment: Record<string, any
     throw new Error('El monto del pago no coincide con el cobro')
   }
   const { data: other } = await db
-    .from('transactions').select('id').eq('mp_payment_id', String(payment.id)).neq('id', tx.id).maybeSingle()
+    .from('df_transactions').select('id').eq('mp_payment_id', String(payment.id)).neq('id', tx.id).maybeSingle()
   if (other) throw new Error('Ese pago ya fue asociado a otro cobro')
 
   const patch = {
@@ -116,7 +116,7 @@ async function applyPayment(tx: Record<string, any>, payment: Record<string, any
     customer_email: tx.customer_email || payment.payer?.email || null,
     updated_at: new Date().toISOString(),
   }
-  const { data: updated, error } = await db.from('transactions').update(patch).eq('id', tx.id).select().single()
+  const { data: updated, error } = await db.from('df_transactions').update(patch).eq('id', tx.id).select().single()
   if (error) throw error
   const emailed = await sendReceipt(updated)
   return { ...updated, email_sent: updated.email_sent || emailed }
@@ -129,7 +129,7 @@ const publicTx = (t: Record<string, any>) => ({
 })
 
 async function getTx(id: string) {
-  const { data, error } = await db.from('transactions').select('*').eq('id', id).single()
+  const { data, error } = await db.from('df_transactions').select('*').eq('id', id).single()
   if (error || !data) throw new Error('Cobro no encontrado')
   return data
 }
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
         const description = String(body.description ?? '').trim().slice(0, 120) || 'Venta'
 
         const { data: tx, error } = await db
-          .from('transactions')
+          .from('df_transactions')
           .insert({ amount, description, customer_email: email || null, method })
           .select().single()
         if (error) throw error
@@ -184,7 +184,7 @@ Deno.serve(async (req) => {
               statement_descriptor: 'DATAFONO',
             }),
           })
-          await db.from('transactions').update({ mp_preference_id: pref.id }).eq('id', tx.id)
+          await db.from('df_transactions').update({ mp_preference_id: pref.id }).eq('id', tx.id)
           return json({ tx: publicTx(tx), init_point: pref.init_point })
         }
         return json({ tx: publicTx(tx) })
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
         const tx = await getTx(String(body.tx_id))
         if (tx.status === 'approved') return json({ tx: publicTx(tx) })
         if (body.result_status === 'FAILED' && !body.payment_id) {
-          const { data } = await db.from('transactions')
+          const { data } = await db.from('df_transactions')
             .update({ status: 'rejected', mp_status_detail: body.error_detail ?? body.error ?? null, updated_at: new Date().toISOString() })
             .eq('id', tx.id).select().single()
           return json({ tx: publicTx(data) })
@@ -211,7 +211,7 @@ Deno.serve(async (req) => {
       }
 
       case 'cancel': {
-        const { data } = await db.from('transactions')
+        const { data } = await db.from('df_transactions')
           .update({ status: 'cancelled', updated_at: new Date().toISOString() })
           .eq('id', String(body.tx_id)).eq('status', 'pending').select().maybeSingle()
         return json({ tx: data ? publicTx(data) : null })
@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
         const tx = await getTx(String(body.tx_id))
         const email = String(body.customer_email ?? tx.customer_email ?? '').trim().toLowerCase()
         if (!EMAIL_RE.test(email)) return json({ error: 'Email inválido' }, 400)
-        const { data } = await db.from('transactions')
+        const { data } = await db.from('df_transactions')
           .update({ customer_email: email, email_sent: false }).eq('id', tx.id).select().single()
         const sent = await sendReceipt(data)
         return json({ sent })

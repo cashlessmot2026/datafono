@@ -15,7 +15,7 @@ export default function Admin({ onExit }) {
 
   useEffect(() => {
     if (!session) { setAuthorized(null); return }
-    supabase.rpc('claim_admin').then(({ data }) => setAuthorized(Boolean(data)))
+    supabase.rpc('df_claim_admin').then(({ data }) => setAuthorized(Boolean(data)))
   }, [session])
 
   if (session === undefined) return <main className="screen center"><div className="spinner" /></main>
@@ -25,7 +25,7 @@ export default function Admin({ onExit }) {
     return (
       <main className="screen center">
         <h2>Sin acceso</h2>
-        <p className="muted">Esta cuenta no es administradora.</p>
+        <p className="muted">Esta cuenta no está autorizada (tabla df_admin_emails) o su email no está confirmado.</p>
         <button className="btn secondary" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
         <button className="btn ghost" onClick={onExit}>Volver</button>
       </main>
@@ -78,7 +78,7 @@ function Dashboard({ onExit }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('transactions').select('*').order('created_at', { ascending: false }).limit(300)
+    const { data } = await supabase.from('df_transactions').select('*').order('created_at', { ascending: false }).limit(300)
     setTxs(data ?? [])
     setLoading(false)
   }, [])
@@ -165,7 +165,7 @@ function Settings() {
   const [msg, setMsg] = useState(null)
 
   useEffect(() => {
-    supabase.from('settings').select('*').eq('id', 1).single().then(({ data }) => setS(data))
+    supabase.from('df_settings').select('*').eq('id', 1).single().then(({ data }) => setS(data))
   }, [])
 
   if (!s) return <div className="spinner" />
@@ -173,7 +173,7 @@ function Settings() {
 
   const save = async () => {
     const { id: _id, updated_at: _u, ...patch } = s
-    const { error } = await supabase.from('settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1)
+    const { error } = await supabase.from('df_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1)
     setMsg(error ? error.message : 'Guardado')
   }
 
